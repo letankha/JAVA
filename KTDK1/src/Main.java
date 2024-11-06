@@ -1,5 +1,6 @@
-import java.util.Scanner;
+import java.io.*;
 import java.util.ArrayList;
+import java.util.Scanner;
 
 class Account {
     private String accountNumber;
@@ -10,6 +11,10 @@ class Account {
         this.accountNumber = accountNumber;
         this.accountName = accountName;
         this.balance = balance;
+    }
+
+    public String getAccountName() {
+        return accountName;
     }
 
     public void deposit(double amount) {
@@ -33,7 +38,7 @@ class Account {
 
     public void display() {
         System.out.println("Account Number: " + accountNumber);
-        System.out.println("Account Name: " + accountName);
+        System.out.println("Account Name: " + getAccountName());
         System.out.println("Balance: " + balance);
     }
 
@@ -43,6 +48,17 @@ class Account {
 
     public double getBalance() {
         return balance;
+    }
+
+    // Phương thức ghi tài khoản ra file
+    public String toFileString() {
+        return "Account," + accountNumber + "," + accountName + "," + balance;
+    }
+
+    // Phương thức đọc tài khoản từ file
+    public static Account fromFileString(String accountStr) {
+        String[] parts = accountStr.split(",");
+        return new Account(parts[1], parts[2], Double.parseDouble(parts[3]));
     }
 }
 
@@ -63,6 +79,16 @@ class SavingsAccount extends Account {
     public double getInterestRate() {
         return interestRate;
     }
+
+    @Override
+    public String toFileString() {
+        return "SavingsAccount," + getAccountNumber() + "," + getAccountName() + "," + getBalance() + "," + interestRate;
+    }
+
+    public static SavingsAccount fromFileString(String accountStr) {
+        String[] parts = accountStr.split(",");
+        return new SavingsAccount(parts[1], parts[2], Double.parseDouble(parts[3]), Double.parseDouble(parts[4]));
+    }
 }
 
 class CheckingAccount extends Account {
@@ -76,6 +102,16 @@ class CheckingAccount extends Account {
     @Override
     public boolean withdraw(double amount) {
         return super.withdraw(amount + transactionFee);
+    }
+
+    @Override
+    public String toFileString() {
+        return "CheckingAccount," + getAccountNumber() + "," + getAccountName() + "," + getBalance() + "," + transactionFee;
+    }
+
+    public static CheckingAccount fromFileString(String accountStr) {
+        String[] parts = accountStr.split(",");
+        return new CheckingAccount(parts[1], parts[2], Double.parseDouble(parts[3]), Double.parseDouble(parts[4]));
     }
 }
 
@@ -110,12 +146,53 @@ class Bank {
             }
         }
     }
+
+    // Lưu tài khoản vào file
+    public void saveAccountsToFile(String filename) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
+            for (Account account : accounts) {
+                writer.write(account.toFileString());
+                writer.newLine();
+            }
+        }
+    }
+
+    // Đọc tài khoản từ file
+    public void loadAccountsFromFile(String filename) throws IOException {
+        File file = new File(filename);
+        if (!file.exists()) {
+            return;
+        }
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(",");
+                // Xử lý các loại tài khoản khác nhau
+                if (parts[0].equals("Account")) {
+                    accounts.add(Account.fromFileString(line));
+                } else if (parts[0].equals("SavingsAccount")) {
+                    accounts.add(SavingsAccount.fromFileString(line));
+                } else if (parts[0].equals("CheckingAccount")) {
+                    accounts.add(CheckingAccount.fromFileString(line));
+                }
+            }
+        }
+    }
 }
 
 public class Main {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         Bank bank = new Bank();
+        String filename = "accounts.txt";
+
+        // Cố gắng tải tài khoản từ tệp
+        try {
+            bank.loadAccountsFromFile(filename);
+        } catch (IOException e) {
+            System.out.println("Error loading accounts from file.");
+        }
 
         while (true) {
             System.out.println("1. Thêm tài khoản mới");
@@ -198,6 +275,12 @@ public class Main {
                     break;
 
                 case 0:
+                    try {
+                        // Lưu tài khoản vào file khi thoát
+                        bank.saveAccountsToFile(filename);
+                    } catch (IOException e) {
+                        System.out.println("Error saving accounts to file.");
+                    }
                     System.out.println("Thoát chương trình.");
                     return;
 
